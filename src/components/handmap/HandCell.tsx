@@ -1,77 +1,94 @@
-import type { Hand, ActionCategory } from '@/types/hand'
+import type { Hand, ActionCategory, StrengthTier } from '@/types/hand'
 import { HAND_STRENGTHS } from '@/data/hands'
-import { getTierColor, getTierTextColor } from '@/utils/color-utils'
+
+export type ColorMode = 'action' | 'tier'
 
 interface HandCellProps {
   hand: Hand
   onClick?: (hand: Hand) => void
   selected?: boolean
   highlighted?: boolean
-  showTooltip?: boolean
   action?: ActionCategory
   is3Bet?: boolean
+  colorMode?: ColorMode
 }
 
-export function HandCell({ hand, onClick, selected, highlighted, action, is3Bet }: HandCellProps) {
+function getActionClass(action: ActionCategory, is3Bet: boolean): string {
+  if (action === 'raise' && is3Bet) return 'cell-3bet'
+  if (action === 'raise') return 'cell-raise'
+  if (action === 'call') return 'cell-call'
+  return 'cell-fold'
+}
+
+function getTierClass(tier: StrengthTier): string {
+  switch (tier) {
+    case 'premium': return 'cell-premium'
+    case 'strong': return 'cell-strong'
+    case 'playable': return 'cell-playable'
+    case 'marginal': return 'cell-marginal'
+    case 'weak': return 'cell-weak'
+  }
+}
+
+function getActionLabel(action: ActionCategory, is3Bet: boolean): string {
+  if (action === 'raise' && is3Bet) return '3B'
+  if (action === 'raise') return 'R'
+  if (action === 'call') return 'C'
+  return ''
+}
+
+export function HandCell({ hand, onClick, selected, highlighted, action, is3Bet, colorMode = 'action' }: HandCellProps) {
   const strength = HAND_STRENGTHS[hand.name]
   const tier = strength?.tier ?? 'weak'
-  const bgColor = getTierColor(tier)
-  const textColor = getTierTextColor(tier)
 
-  const handleClick = () => {
-    onClick?.(hand)
-  }
+  const cellClass = colorMode === 'action' && action
+    ? getActionClass(action, !!is3Bet)
+    : getTierClass(tier)
+
+  const actionLabel = action ? getActionLabel(action, !!is3Bet) : ''
+  const isFold = action === 'fold'
 
   return (
     <button
-      onClick={handleClick}
-      title={undefined}
+      onClick={() => onClick?.(hand)}
       className={[
-        'flex items-center justify-center relative overflow-hidden',
-        'text-xs font-bold leading-none',
-        'transition-all duration-150',
-        'w-full aspect-square min-w-0',
-        bgColor,
-        textColor,
-        selected
-          ? 'ring-2 ring-white ring-offset-1 scale-105 z-10 relative'
-          : '',
-        highlighted
-          ? 'opacity-100'
-          : 'opacity-80',
-        onClick
-          ? 'cursor-pointer hover:opacity-100 hover:scale-105 hover:z-10 hover:relative'
-          : 'cursor-default',
-        hand.suit === 'p' ? 'ring-1 ring-inset ring-white/30' : '',
+        'hand-cell flex flex-col items-center justify-center relative overflow-hidden',
+        'font-mono leading-none',
+        'w-full aspect-square min-w-0 rounded-[2px]',
+        cellClass,
+        selected ? 'ring-2 ring-white scale-105 z-10' : '',
+        highlighted === false ? 'opacity-20' : '',
+        onClick ? 'cursor-pointer' : 'cursor-default',
+        hand.suit === 'p' ? 'ring-1 ring-inset ring-white/20' : '',
       ].filter(Boolean).join(' ')}
     >
-      <span className="truncate px-0.5 text-[10px] sm:text-xs">
+      {/* Hand name */}
+      <span className={[
+        'font-medium tracking-tight',
+        isFold && colorMode === 'action' ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs',
+      ].join(' ')}>
         {hand.name}
       </span>
-      {action && (
+
+      {/* Action label in tier mode */}
+      {colorMode === 'tier' && actionLabel && (
         <span
-          className="absolute bottom-0 left-[1px] right-[1px] text-[6px] sm:text-[7px] text-center font-extrabold leading-none py-[2.5px] rounded-t-[3px]"
+          className="absolute bottom-0 left-[1px] right-[1px] text-[6px] sm:text-[7px] text-center font-bold leading-none py-[2px] rounded-t-[2px]"
           style={{
             background: action === 'raise' && is3Bet
-              ? 'linear-gradient(to top, #c2410c, #fb923c)'
+              ? 'linear-gradient(to top, #dc2626, #ef4444)'
               : action === 'raise'
-                ? 'linear-gradient(to top, #059669, #34d399)'
+                ? 'linear-gradient(to top, #059669, #10b981)'
                 : action === 'call'
-                  ? 'linear-gradient(to top, #7c3aed, #a78bfa)'
-                  : 'linear-gradient(to top, #57534e, #a8a29e)',
-            color: action === 'fold' ? '#e7e5e4' : '#fff',
-            boxShadow: '0 -1px 3px rgba(0,0,0,0.15)',
+                  ? 'linear-gradient(to top, #2563eb, #3b82f6)'
+                  : 'transparent',
+            color: '#fff',
           }}
         >
-          {action === 'raise' && is3Bet
-            ? '3B'
-            : action === 'raise'
-              ? 'R'
-              : action === 'call'
-                ? 'C'
-                : 'F'}
+          {actionLabel}
         </span>
       )}
+
     </button>
   )
 }

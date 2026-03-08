@@ -8,15 +8,24 @@ import type { Position } from '@/data/positions'
 import { VS_OPEN_RANGES, getScenariosForPosition } from '@/data/vsOpenRanges'
 import type { VsOpenKey } from '@/data/vsOpenRanges'
 import { ALL_HANDS } from '@/data/hands'
+import type { ColorMode } from '@/components/handmap/HandCell'
 
 const ALL_TIERS: StrengthTier[] = ['premium', 'strong', 'playable', 'marginal', 'weak']
 
+const POSITION_META: Record<Position, { short: string; label: string; desc: string }> = {
+  UTG: { short: 'UTG', label: '언더더건', desc: '가장 타이트' },
+  MP: { short: 'MP', label: '미들', desc: '약간 확장' },
+  CO: { short: 'CO', label: '컷오프', desc: '넓은 레인지' },
+  BTN: { short: 'BTN', label: '버튼', desc: '가장 넓음' },
+  SB: { short: 'SB', label: '스몰블', desc: 'R or F' },
+  BB: { short: 'BB', label: '빅블', desc: '3벳 + 콜' },
+}
+
 export function HandMapPage() {
-  const [activeTiers, setActiveTiers] = useState<Set<StrengthTier>>(
-    new Set(ALL_TIERS)
-  )
+  const [activeTiers, setActiveTiers] = useState<Set<StrengthTier>>(new Set(ALL_TIERS))
   const [selectedPosition, setSelectedPosition] = useState<Position>('UTG')
   const [selectedScenario, setSelectedScenario] = useState<'open' | Position>('open')
+  const [colorMode, setColorMode] = useState<ColorMode>('action')
 
   const scenarios = useMemo(() => getScenariosForPosition(selectedPosition), [selectedPosition])
 
@@ -30,9 +39,7 @@ export function HandMapPage() {
     setActiveTiers(prev => {
       const next = new Set(prev)
       if (next.has(tier)) {
-        if (next.size > 1) {
-          next.delete(tier)
-        }
+        if (next.size > 1) next.delete(tier)
       } else {
         next.add(tier)
       }
@@ -40,9 +47,7 @@ export function HandMapPage() {
     })
   }
 
-  const handleShowAll = () => {
-    setActiveTiers(new Set(ALL_TIERS))
-  }
+  const handleShowAll = () => setActiveTiers(new Set(ALL_TIERS))
 
   const isAllActive = activeTiers.size === ALL_TIERS.length
 
@@ -77,151 +82,181 @@ export function HandMapPage() {
   }, [selectedPosition, selectedScenario])
 
   const stats = useMemo(() => {
-    let raise = 0
-    let call = 0
-    let fold = 0
-    let threeBet = 0
+    let raise = 0, call = 0, fold = 0, threeBet = 0
     for (const [name, action] of Object.entries(actionOverlay)) {
       if (action === 'raise') raise++
       else if (action === 'call') call++
       else fold++
       if (threeBetSet.has(name)) threeBet++
     }
-    return { raise, call, fold, threeBet }
+    const total = raise + call + fold
+    return {
+      raise, call, fold, threeBet, total,
+      raisePercent: total ? Math.round((raise / total) * 100) : 0,
+      callPercent: total ? Math.round((call / total) * 100) : 0,
+      foldPercent: total ? Math.round((fold / total) * 100) : 0,
+    }
   }, [actionOverlay, threeBetSet])
 
+  const positionMeta = POSITION_META[selectedPosition]
+
   return (
-    <div className="min-h-screen bg-gray-950 text-white p-4">
-      <div className="max-w-3xl mx-auto">
-        {/* 헤더 */}
-        <div className="mb-6 text-center">
-          <h1 className="text-2xl font-bold mb-1">프리플랍 핸드맵</h1>
-          <p className="text-gray-400 text-sm">
-            169개 핸드의 강도를 한눈에 확인하세요. 셀에 마우스를 올리면 자세한 정보를 볼 수 있습니다.
-          </p>
-        </div>
+    <div className="min-h-screen text-white p-3 sm:p-4" style={{ background: '#0a0a14', fontFamily: "'Outfit', sans-serif" }}>
+      <div className="max-w-2xl mx-auto">
 
-        {/* 포지션 선택기 */}
-        <div className="mb-4">
-          <div className="mb-2">
-            <span className="text-sm text-gray-400">
-              {selectedScenario === 'open' ? '포지션별 레인지' : '포지션별 방어 레인지'}
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {POSITIONS.map(pos => (
-              <button
-                key={pos}
-                onClick={() => handlePositionChange(pos)}
-                className={[
-                  'px-3 py-1.5 rounded-lg text-sm font-medium transition-all',
-                  selectedPosition === pos
-                    ? 'bg-blue-600 text-white ring-2 ring-blue-400'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700',
-                ].join(' ')}
-              >
-                {pos}
-              </button>
-            ))}
-          </div>
-
-          {/* 시나리오 탭 */}
-          <ScenarioTabBar
-            scenarios={scenarios}
-            selectedScenario={selectedScenario}
-            onScenarioChange={setSelectedScenario}
-          />
-
-          {/* 포지션 통계 */}
-          <div className="mt-2 flex gap-4 text-xs">
-            {selectedScenario === 'open' ? (
-              <>
-                <span className="text-green-400">Raise {stats.raise}개</span>
-                <span className="text-yellow-400">Call {stats.call}개</span>
-                <span className="text-gray-500">Fold {stats.fold}개</span>
-                {stats.threeBet > 0 && (
-                  <span className="text-orange-400">3-Bet {stats.threeBet}개</span>
-                )}
-              </>
-            ) : (
-              <>
-                <span className="text-orange-400">3-Bet {stats.threeBet}개</span>
-                <span className="text-yellow-400">Call {stats.call}개</span>
-                <span className="text-gray-500">Fold {stats.fold}개</span>
-              </>
-            )}
-            <span className="text-gray-400 ml-auto">
+        {/* Header - compact */}
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">
+              프리플랍 핸드맵
+            </h1>
+            <p className="text-gray-500 text-xs mt-0.5">
               {selectedScenario === 'open'
-                ? `${POSITION_RANGES[selectedPosition].label} (${selectedPosition})`
-                : `${selectedPosition} vs ${selectedScenario} 오픈`}
-            </span>
+                ? `${positionMeta.label} (${selectedPosition}) 오픈 레인지`
+                : `${selectedPosition} vs ${selectedScenario} 방어 레인지`}
+            </p>
+          </div>
+
+          {/* View mode toggle */}
+          <div className="view-toggle flex items-center gap-0.5 text-[10px] sm:text-xs font-medium">
+            <button
+              onClick={() => setColorMode('action')}
+              className={[
+                'px-2.5 py-1 rounded-full transition-all',
+                colorMode === 'action'
+                  ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/30'
+                  : 'text-gray-500 hover:text-gray-300',
+              ].join(' ')}
+            >
+              액션 뷰
+            </button>
+            <button
+              onClick={() => setColorMode('tier')}
+              className={[
+                'px-2.5 py-1 rounded-full transition-all',
+                colorMode === 'tier'
+                  ? 'bg-amber-600 text-white shadow-lg shadow-amber-600/30'
+                  : 'text-gray-500 hover:text-gray-300',
+              ].join(' ')}
+            >
+              등급 뷰
+            </button>
           </div>
         </div>
 
-        {/* 범례 / 필터 */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-gray-400">등급 필터</span>
-            {!isAllActive && (
-              <button
-                onClick={handleShowAll}
-                className="text-xs text-blue-400 hover:text-blue-300 underline"
-              >
-                전체 보기
-              </button>
+        {/* Position selector - horizontal pills */}
+        <div className="mb-3">
+          <div className="flex gap-1.5 sm:gap-2">
+            {POSITIONS.map(pos => {
+              const meta = POSITION_META[pos]
+              const isActive = selectedPosition === pos
+              return (
+                <button
+                  key={pos}
+                  onClick={() => handlePositionChange(pos)}
+                  className={[
+                    'pos-ring flex-1 flex flex-col items-center py-1.5 sm:py-2 rounded-lg text-center transition-all border',
+                    isActive
+                      ? 'active bg-emerald-600/15 border-emerald-500/40 text-white'
+                      : 'bg-white/[0.03] border-white/[0.06] text-gray-500 hover:text-gray-300 hover:bg-white/[0.06]',
+                  ].join(' ')}
+                >
+                  <span className={[
+                    'text-xs sm:text-sm font-bold font-mono',
+                    isActive ? 'text-emerald-400' : '',
+                  ].join(' ')}>
+                    {meta.short}
+                  </span>
+                  <span className="text-[8px] sm:text-[9px] mt-0.5 opacity-60 hidden sm:block">
+                    {meta.desc}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Scenario tabs */}
+        <ScenarioTabBar
+          scenarios={scenarios}
+          selectedScenario={selectedScenario}
+          onScenarioChange={setSelectedScenario}
+        />
+
+        {/* Action legend bar */}
+        <div className="mt-3 mb-2 flex items-center justify-between">
+          <div className="flex gap-3 sm:gap-4 text-[10px] sm:text-xs font-medium">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-[2px] cell-raise inline-block" />
+              <span className="text-emerald-400">Raise</span>
+              <span className="text-gray-600">{stats.raise}</span>
+            </span>
+            {stats.threeBet > 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-[2px] cell-3bet inline-block" />
+                <span className="text-red-400">3-Bet</span>
+                <span className="text-gray-600">{stats.threeBet}</span>
+              </span>
             )}
+            {stats.call > 0 && (
+              <span className="flex items-center gap-1.5">
+                <span className="w-3 h-3 rounded-[2px] cell-call inline-block" />
+                <span className="text-blue-400">Call</span>
+                <span className="text-gray-600">{stats.call}</span>
+              </span>
+            )}
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-[2px] cell-fold inline-block border border-white/10" />
+              <span className="text-gray-600">Fold</span>
+              <span className="text-gray-700">{stats.fold}</span>
+            </span>
           </div>
-          <HandLegend
-            activeTiers={activeTiers}
-            onTierToggle={handleTierToggle}
-          />
+
+          {/* Range percentage */}
+          <span className="text-[10px] sm:text-xs font-mono text-gray-500">
+            {stats.raisePercent + stats.callPercent}% play
+          </span>
         </div>
 
-        {/* 범례: 액션 태그 설명 */}
-        <div className="mb-3 flex gap-5 text-xs text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span
-                className="inline-block px-1.5 py-0.5 rounded-[3px] text-[10px] font-extrabold text-white"
-                style={{ background: 'linear-gradient(to top, #059669, #34d399)' }}
-              >R</span>
-              Raise
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span
-                className="inline-block px-1.5 py-0.5 rounded-[3px] text-[10px] font-extrabold text-white"
-                style={{ background: 'linear-gradient(to top, #7c3aed, #a78bfa)' }}
-              >C</span>
-              Call
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span
-                className="inline-block px-1.5 py-0.5 rounded-[3px] text-[10px] font-extrabold"
-                style={{ background: 'linear-gradient(to top, #57534e, #a8a29e)', color: '#e7e5e4' }}
-              >F</span>
-              Fold
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span
-                className="inline-block px-1.5 py-0.5 rounded-[3px] text-[10px] font-extrabold text-white"
-                style={{ background: 'linear-gradient(to top, #c2410c, #fb923c)' }}
-              >3B</span>
-              3-Bet
-            </span>
-          </div>
+        {/* Range bar - visual summary */}
+        <div className="flex h-1.5 rounded-full overflow-hidden mb-3 bg-white/5">
+          {stats.raisePercent > 0 && (
+            <div className="cell-raise" style={{ width: `${stats.raisePercent}%` }} />
+          )}
+          {stats.callPercent > 0 && (
+            <div className="cell-call" style={{ width: `${stats.callPercent}%` }} />
+          )}
+        </div>
 
-        {/* 그리드 */}
-        <div className="bg-gray-900 rounded-xl p-3 overflow-x-auto">
+        {/* Tier filter (only in tier mode) */}
+        {colorMode === 'tier' && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-medium">등급 필터</span>
+              {!isAllActive && (
+                <button onClick={handleShowAll} className="text-[10px] text-blue-400 hover:text-blue-300">
+                  전체 보기
+                </button>
+              )}
+            </div>
+            <HandLegend
+              activeTiers={activeTiers}
+              onTierToggle={handleTierToggle}
+              colorMode={colorMode}
+            />
+          </div>
+        )}
+
+        {/* THE GRID */}
+        <div className="rounded-xl overflow-hidden p-2 sm:p-3" style={{ background: '#0d0d1a' }}>
           <HandGrid
-            highlightTiers={activeTiers}
+            highlightTiers={colorMode === 'tier' ? activeTiers : undefined}
             actionOverlay={actionOverlay}
             threeBetSet={threeBetSet}
+            colorMode={colorMode}
           />
         </div>
 
-        {/* 범례 설명 */}
-        <div className="mt-4 text-center text-xs text-gray-500">
-          <p>상단 우측 삼각형: 동색(Suited) | 하단 좌측 삼각형: 이색(Offsuit) | 대각선: 포켓 페어</p>
-        </div>
       </div>
     </div>
   )

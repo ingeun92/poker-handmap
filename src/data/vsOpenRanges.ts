@@ -340,7 +340,7 @@ const BB_vs_SB: VsOpenRange = {
     'AA', 'KK', 'QQ', 'JJ', 'TT', '99', '88',
     'AKs', 'AQs', 'AJs', 'ATs', 'A9s', 'A8s',
     'KQs', 'KJs', 'KTs',
-    'QJs', 'QTs',
+    'QJs', 'QTs', 'JTs',
     'A5s', 'A4s', 'A3s', 'A2s',
     'K9s',
     '87s', '76s', '65s', '54s',

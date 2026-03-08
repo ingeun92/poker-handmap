@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { Hand, StrengthTier, ActionCategory } from '@/types/hand'
 import { RANKS } from '@/types/hand'
 import { HAND_GRID, HAND_STRENGTHS } from '@/data/hands'
-import { HandCell } from './HandCell'
+import { HandCell, type ColorMode } from './HandCell'
 import { HandTooltip } from './HandTooltip'
 
 interface HandGridProps {
@@ -11,6 +11,7 @@ interface HandGridProps {
   highlightTiers?: Set<StrengthTier>
   actionOverlay?: Record<string, ActionCategory>
   threeBetSet?: Set<string>
+  colorMode?: ColorMode
 }
 
 interface TooltipState {
@@ -19,7 +20,7 @@ interface TooltipState {
   y: number
 }
 
-export function HandGrid({ onHandClick, selectedHands, highlightTiers, actionOverlay, threeBetSet }: HandGridProps) {
+export function HandGrid({ onHandClick, selectedHands, highlightTiers, actionOverlay, threeBetSet, colorMode = 'action' }: HandGridProps) {
   const [tooltip, setTooltip] = useState<TooltipState | null>(null)
 
   const handleMouseEnter = (hand: Hand, e: React.MouseEvent) => {
@@ -45,43 +46,39 @@ export function HandGrid({ onHandClick, selectedHands, highlightTiers, actionOve
   return (
     <div className="relative" onMouseMove={handleMouseMove}>
       <div
-        className="grid"
-        style={{ gridTemplateColumns: `auto repeat(13, minmax(0, 1fr))` }}
+        className="grid gap-[1px]"
+        style={{
+          gridTemplateColumns: `24px repeat(13, minmax(0, 1fr))`,
+          background: '#0d0d1a',
+        }}
       >
-        {/* 헤더 행: 빈 셀 + 열 레이블 */}
-        <div className="w-7" />
+        {/* Header row */}
+        <div className="w-6" />
         {RANKS.map(rank => (
           <div
             key={`col-${rank}`}
-            className="flex items-center justify-center text-xs font-bold text-gray-500 pb-1 h-6"
+            className="flex items-center justify-center text-[10px] sm:text-xs font-mono font-medium text-gray-500 h-5 sm:h-6"
           >
             {rank}
           </div>
         ))}
 
-        {/* 데이터 행 */}
+        {/* Data rows */}
         {HAND_GRID.map((row, rowIdx) => (
           <>
-            {/* 행 레이블 */}
             <div
               key={`row-label-${rowIdx}`}
-              className="flex items-center justify-center text-xs font-bold text-gray-500 pr-1 w-7"
+              className="flex items-center justify-center text-[10px] sm:text-xs font-mono font-medium text-gray-500 w-6"
             >
               {RANKS[rowIdx]}
             </div>
 
-            {/* 핸드 셀들 */}
-            {row.map((hand, colIdx) => (
+            {row.map((hand) => (
               <div
                 key={hand.name}
                 onMouseEnter={e => handleMouseEnter(hand, e)}
                 onMouseLeave={handleMouseLeave}
-                className={[
-                  'border-r border-b border-gray-800/40',
-                  rowIdx === 0 ? 'border-t' : '',
-                  colIdx === 0 ? 'border-l' : '',
-                  isHighlighted(hand) ? '' : 'opacity-25',
-                ].filter(Boolean).join(' ')}
+                className={isHighlighted(hand) ? '' : 'opacity-20'}
               >
                 <HandCell
                   hand={hand}
@@ -90,6 +87,7 @@ export function HandGrid({ onHandClick, selectedHands, highlightTiers, actionOve
                   highlighted={isHighlighted(hand)}
                   action={actionOverlay?.[hand.name]}
                   is3Bet={threeBetSet?.has(hand.name)}
+                  colorMode={colorMode}
                 />
               </div>
             ))}
@@ -97,12 +95,13 @@ export function HandGrid({ onHandClick, selectedHands, highlightTiers, actionOve
         ))}
       </div>
 
-      {/* 툴팁 */}
       {tooltip && (
         <HandTooltip
           hand={tooltip.hand}
           x={tooltip.x}
           y={tooltip.y}
+          action={actionOverlay?.[tooltip.hand.name]}
+          is3Bet={threeBetSet?.has(tooltip.hand.name)}
         />
       )}
     </div>

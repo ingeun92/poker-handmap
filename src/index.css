@@ -2,8 +2,83 @@
 
 @theme {
   --grid-template-columns-14: repeat(14, minmax(0, 1fr));
+  --font-display: 'Outfit', sans-serif;
+  --font-mono: 'DM Mono', monospace;
 }
 
 @utility grid-cols-14 {
   grid-template-columns: repeat(14, minmax(0, 1fr));
+}
+
+/* Action-based cell colors */
+.cell-raise {
+  background: linear-gradient(135deg, #059669, #10b981);
+  color: #fff;
+}
+.cell-3bet {
+  background: linear-gradient(135deg, #dc2626, #ef4444);
+  color: #fff;
+}
+.cell-call {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+}
+.cell-fold {
+  background: #1a1a2e;
+  color: #4a4a5a;
+}
+
+/* Tier-based cell colors (for tier view) */
+.cell-premium {
+  background: linear-gradient(135deg, #9333ea, #a855f7);
+  color: #fff;
+}
+.cell-strong {
+  background: linear-gradient(135deg, #d97706, #f59e0b);
+  color: #fff;
+}
+.cell-playable {
+  background: linear-gradient(135deg, #ca8a04, #eab308);
+  color: #1a1a2e;
+}
+.cell-marginal {
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #fff;
+}
+.cell-weak {
+  background: #2a2a3e;
+  color: #6a6a7a;
+}
+
+/* Position ring on poker table */
+.pos-ring {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.pos-ring:hover {
+  transform: scale(1.08);
+}
+.pos-ring.active {
+  box-shadow: 0 0 0 2px #10b981, 0 0 16px rgba(16, 185, 129, 0.4);
+}
+
+/* Grid cell hover */
+.hand-cell {
+  transition: all 0.12s ease;
+  position: relative;
+}
+.hand-cell:hover {
+  transform: scale(1.12);
+  z-index: 10;
+  box-shadow: 0 0 12px rgba(255,255,255,0.2);
+}
+
+/* View toggle */
+.view-toggle {
+  position: relative;
+  background: #1a1a2e;
+  border-radius: 9999px;
+  padding: 3px;
+}
+.view-toggle-thumb {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
